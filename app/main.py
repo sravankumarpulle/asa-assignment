@@ -241,7 +241,8 @@ def create_share_link(
 
 @app.post("/auth/login")
 def login(payload: UserLogin, db: Session = Depends(get_db)):
-    logger.info("Login attempt — username: %s password: %s", payload.username, payload.password)
+    logger.info("Login attempt — username: %s password: %s", payload.username)
+    logger.warning("Login attempt — username: %s password: %s", payload.username)
     user = db.query(models.User).filter(models.User.username == payload.username).first()
     if not user or not verify_password(payload.password, user.hashed_password):
         logger.warning(

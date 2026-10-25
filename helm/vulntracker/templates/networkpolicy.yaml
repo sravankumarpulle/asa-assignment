@@ -1,78 +1,53 @@
 {{- if .Values.networkPolicy.enabled }}
+
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
+
 metadata:
-  name: {{ include "vulntracker.fullname" . }}-default-deny
-spec:
-  podSelector: {}
-  policyTypes:
-    - Ingress
-    - Egress
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: {{ include "vulntracker.fullname" . }}-api
+  name: {{ .Release.Name }}-api-ingress
+
 spec:
   podSelector:
     matchLabels:
-      app.kubernetes.io/instance: {{ .Release.Name }}
-      app.kubernetes.io/component: api
+      app.kubernetes.io/name: vulntracker-api
+
   policyTypes:
     - Ingress
-    - Egress
+
   ingress:
-    - ports:
-        - protocol: TCP
-          port: {{ .Values.fastapi.containerPort }}
-  egress:
-    - to:
-        - podSelector:
-            matchLabels:
-              app.kubernetes.io/instance: {{ .Release.Name }}
-              app.kubernetes.io/component: notify
-      ports:
-        - protocol: TCP
-          port: {{ .Values.notify.containerPort }}
-    - to:
+    - from:
         - namespaceSelector:
             matchLabels:
-              kubernetes.io/metadata.name: kube-system
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.ingressNamespace }}
+
       ports:
-        - protocol: UDP
-          port: 53
         - protocol: TCP
-          port: 53
+          port: 8000
+
 ---
+
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
+
 metadata:
-  name: {{ include "vulntracker.fullname" . }}-notify
+  name: {{ .Release.Name }}-notify-ingress
+
 spec:
   podSelector:
     matchLabels:
-      app.kubernetes.io/instance: {{ .Release.Name }}
-      app.kubernetes.io/component: notify
+      app.kubernetes.io/name: vulntracker-notify
+
   policyTypes:
     - Ingress
-    - Egress
+
   ingress:
     - from:
         - podSelector:
             matchLabels:
-              app.kubernetes.io/instance: {{ .Release.Name }}
-              app.kubernetes.io/component: api
+              app.kubernetes.io/name: vulntracker-api
+
       ports:
         - protocol: TCP
-          port: {{ .Values.notify.containerPort }}
-  egress:
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
-      ports:
-        - protocol: UDP
-          port: 53
-        - protocol: TCP
-          port: 53
+          port: 3001
+
 {{- end }}

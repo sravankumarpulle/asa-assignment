@@ -1,47 +1,14 @@
-nameOverride: ""
-fullnameOverride: ""
-
-imagePullSecrets: []
-
-serviceAccount:
-  create: true
-  name: "vulntracker"
-  annotations: {}
-
-keyVault:
-  enabled: true
-  name: "akvrgd"
-  tenantId: "21bc72b3-ff61-4e5d-8467-d559be7d15f5"
-  clientId: "19780969-ec0e-435a-9a3d-73fb1116f0d6"
-  secretObjects:
-    - objectName: vulntracker-secret-key
-      objectType: secret
-      objectVersion: ""
-    - objectName: vulntracker-api-token
-      objectType: secret
-      objectVersion: ""
-
-fastapi:
-  replicaCount: 1
+api:
+  replicaCount: 2
 
   image:
     repository: cloudacrrgd.azurecr.io/vulntracker-api
-    tag: "1.0.1"
+    tag: "1.0.0"
     pullPolicy: IfNotPresent
 
-  containerPort: 8000
-
   service:
-    type: LoadBalancer
-    port: 80
-    loadBalancerIP: ""
-    annotations:
-      service.beta.kubernetes.io/azure-load-balancer-health-probe-request-path: /health
-    externalTrafficPolicy: Local
-
-  env:
-    notifyUrl: "http://vulntracker-notify:3001"
-    databaseUrl: "sqlite:////opt/vulntracker/data/vulntracker.db"
+    type: ClusterIP
+    port: 8000
 
   resources:
     requests:
@@ -51,33 +18,16 @@ fastapi:
       cpu: 500m
       memory: 512Mi
 
-  autoscaling:
-    enabled: false
-
-  probes:
-    path: /health
-    initialDelaySeconds: 10
-    periodSeconds: 10
-    timeoutSeconds: 3
-    failureThreshold: 3
-
 notify:
   replicaCount: 2
-
   image:
     repository: cloudacrrgd.azurecr.io/vulntracker-notify
     tag: "1.0.0"
     pullPolicy: IfNotPresent
 
-  containerPort: 3001
-
   service:
-    type: LoadBalancer
+    type: ClusterIP
     port: 3001
-    loadBalancerIP: ""
-    internal: true
-    annotations: {}
-    externalTrafficPolicy: Cluster
 
   resources:
     requests:
@@ -87,37 +37,56 @@ notify:
       cpu: 250m
       memory: 256Mi
 
-  probes:
-    path: /health
-    initialDelaySeconds: 10
-    periodSeconds: 10
-    timeoutSeconds: 3
-    failureThreshold: 3
+
+serviceAccount:
+  create: true
+  name: vulntracker
+
 
 podSecurityContext:
   runAsNonRoot: true
   runAsUser: 10001
   runAsGroup: 10001
   fsGroup: 10001
+
   seccompProfile:
     type: RuntimeDefault
 
+
 containerSecurityContext:
   allowPrivilegeEscalation: false
-  privileged: false
-  readOnlyRootFilesystem: true
   runAsNonRoot: true
+  runAsUser: 10001
+  readOnlyRootFilesystem: true
   capabilities:
     drop:
       - ALL
 
+
+ingress:
+  enabled: true
+  className: nginx
+  host: vulntracker.example.com
+
+
 networkPolicy:
   enabled: true
+  ingressNamespace: ingress-nginx
+
+keyVault:
+  enabled: true
+
+  name: "vulntracker-kv"
+
+  # Non-secret Azure identifiers.
+  tenantId: ""
+  clientId: ""
+
+  secretObjects:
+    - objectName: vulntracker-app-secret
+      objectType: secret
+      objectVersion: ""
 
 podDisruptionBudget:
   enabled: true
   minAvailable: 1
-
-nodeSelector: {}
-tolerations: []
-affinity: {}

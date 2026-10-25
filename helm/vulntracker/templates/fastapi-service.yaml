@@ -1,25 +1,20 @@
 apiVersion: v1
 kind: Service
+
 metadata:
-  name: {{ include "vulntracker.fullname" . }}-api
+  name: {{ .Release.Name }}-api
+
   labels:
-    {{- include "vulntracker.labels" . | nindent 4 }}
-    app.kubernetes.io/component: api
-  annotations:
-    {{- with .Values.fastapi.service.annotations }}
-    {{- toYaml . | nindent 4 }}
-    {{- end }}
+    app.kubernetes.io/name: vulntracker-api
+
 spec:
-  type: {{ .Values.fastapi.service.type }}
-  externalTrafficPolicy: {{ .Values.fastapi.service.externalTrafficPolicy }}
-  {{- with .Values.fastapi.service.loadBalancerIP }}
-  loadBalancerIP: {{ . | quote }}
-  {{- end }}
+  type: {{ .Values.api.service.type }}
+
   selector:
-    app.kubernetes.io/instance: {{ .Release.Name }}
-    app.kubernetes.io/component: api
+    app.kubernetes.io/name: vulntracker-api
+
   ports:
     - name: http
-      port: {{ .Values.fastapi.service.port }}
-      targetPort: http
       protocol: TCP
+      port: {{ .Values.api.service.port }}
+      targetPort: http

@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "vulntracker.fullname" . }}-notify
+  labels:
+    {{- include "vulntracker.labels" . | nindent 4 }}
+    app.kubernetes.io/component: notify
+spec:
+  replicas: {{ .Values.notify.replicaCount }}
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: notify
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "vulntracker.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: notify
+    spec:
+      serviceAccountName: {{ include "vulntracker.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: notify
+          image: "{{ .Values.notify.image.repository }}:{{ .Values.notify.image.tag }}"
+          imagePullPolicy: {{ .Values.notify.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.notify.containerPort }}
+              protocol: TCP
+          env:
+            - name: PORT
+              value: {{ .Values.notify.containerPort | quote }}
+            - name: NODE_ENV
+              value: production
+          resources:
+            {{- toYaml .Values.notify.resources | nindent 12 }}
+          startupProbe:
+            httpGet:
+              path: {{ .Values.notify.probes.path }}
+              port: http
+            periodSeconds: 5
+            failureThreshold: 20
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.notify.probes.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.notify.probes.initialDelaySeconds }}
+            periodSeconds: {{ .Values.notify.probes.periodSeconds }}
+            timeoutSeconds: {{ .Values.notify.probes.timeoutSeconds }}
+            failureThreshold: {{ .Values.notify.probes.failureThreshold }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.notify.probes.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.notify.probes.initialDelaySeconds }}
+            periodSeconds: {{ .Values.notify.probes.periodSeconds }}
+            timeoutSeconds: {{ .Values.notify.probes.timeoutSeconds }}
+            failureThreshold: {{ .Values.notify.probes.failureThreshold }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

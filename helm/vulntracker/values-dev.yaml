@@ -1,0 +1,17 @@
+fastapi:
+  replicaCount: 1
+
+  service:
+    type: LoadBalancer
+    loadBalancerIP: ""
+
+notify:
+  replicaCount: 1
+
+  service:
+    type: LoadBalancer
+    internal: false
+    loadBalancerIP: ""
+
+podDisruptionBudget:
+  enabled: false

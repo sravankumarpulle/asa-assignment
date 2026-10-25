@@ -1,0 +1,108 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "vulntracker.fullname" . }}-api
+  labels:
+    {{- include "vulntracker.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  replicas: {{ .Values.fastapi.replicaCount }}
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "vulntracker.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: api
+        {{- if .Values.keyVault.enabled }}
+        azure.workload.identity/use: "true"
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "vulntracker.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: api
+          image: "{{ .Values.fastapi.image.repository }}:{{ .Values.fastapi.image.tag }}"
+          imagePullPolicy: {{ .Values.fastapi.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.fastapi.containerPort }}
+              protocol: TCP
+          env:
+            - name: NOTIFY_URL
+              value: {{ .Values.fastapi.env.notifyUrl | quote }}
+            - name: DATABASE_URL
+              value: {{ .Values.fastapi.env.databaseUrl | quote }}
+    
+          resources:
+            {{- toYaml .Values.fastapi.resources | nindent 12 }}
+          startupProbe:
+            httpGet:
+              path: {{ .Values.fastapi.probes.path }}
+              port: http
+            periodSeconds: 5
+            failureThreshold: 20
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.fastapi.probes.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.fastapi.probes.initialDelaySeconds }}
+            periodSeconds: {{ .Values.fastapi.probes.periodSeconds }}
+            timeoutSeconds: {{ .Values.fastapi.probes.timeoutSeconds }}
+            failureThreshold: {{ .Values.fastapi.probes.failureThreshold }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.fastapi.probes.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.fastapi.probes.initialDelaySeconds }}
+            periodSeconds: {{ .Values.fastapi.probes.periodSeconds }}
+            timeoutSeconds: {{ .Values.fastapi.probes.timeoutSeconds }}
+            failureThreshold: {{ .Values.fastapi.probes.failureThreshold }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: data
+              mountPath: /opt/vulntracker/data
+            {{- if .Values.keyVault.enabled }}
+            - name: secrets-store
+              mountPath: /mnt/secrets-store
+              readOnly: true
+            {{- end }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: data
+          emptyDir: {}
+        {{- if .Values.keyVault.enabled }}
+        - name: secrets-store
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: {{ include "vulntracker.fullname" . }}-akv
+        {{- end }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

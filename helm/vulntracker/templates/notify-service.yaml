@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "vulntracker.fullname" . }}-notify
+  labels:
+    {{- include "vulntracker.labels" . | nindent 4 }}
+    app.kubernetes.io/component: notify
+  annotations:
+    {{- if and (eq .Values.notify.service.type "LoadBalancer") .Values.notify.service.internal }}
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+    {{- end }}
+    {{- with .Values.notify.service.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  type: {{ .Values.notify.service.type }}
+  externalTrafficPolicy: {{ .Values.notify.service.externalTrafficPolicy }}
+  {{- with .Values.notify.service.loadBalancerIP }}
+  loadBalancerIP: {{ . | quote }}
+  {{- end }}
+  selector:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: notify
+  ports:
+    - name: http
+      port: {{ .Values.notify.service.port }}
+      targetPort: http
+      protocol: TCP

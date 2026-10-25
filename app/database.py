@@ -27,3 +27,25 @@ def search_scans_by_query(db, query: str) -> list:
     )
     result = db.execute(text(sql))
     return [dict(row._mapping) for row in result]
+
+
+def search_scans_by_query(db, query: str, owner_id: int) -> list:
+    from models import ScanResult
+
+    search_term = f"%{query}%"
+
+    results = (
+        db.query(ScanResult)
+        .filter(
+            ScanResult.owner_id == owner_id,
+            or_(
+                ScanResult.title.ilike(search_term),
+                ScanResult.description.ilike(search_term),
+                ScanResult.cve_id.ilike(search_term),
+                ScanResult.affected_component.ilike(search_term),
+            ),
+        )
+        .all()
+    )
+
+    return results

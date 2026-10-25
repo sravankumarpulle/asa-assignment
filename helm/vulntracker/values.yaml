@@ -121,3 +121,6 @@ podDisruptionBudget:
 nodeSelector: {}
 tolerations: []
 affinity: {}
+
+secrets:
+  providerClassName: vulntracker-secrets
